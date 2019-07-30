@@ -86,6 +86,8 @@ void MainHandler(void *arg) {
   std::unique_ptr<rt::TcpQueue> q(rt::TcpQueue::Listen({0, server_port}, 4096));
   if (q == nullptr) panic("couldn't listen for connections");
 
+  log_err("listening for connections port %d", server_port);
+
   while (true) {
     rt::TcpConn *c = q->Accept();
     if (c == nullptr) panic("couldn't accept a connection");

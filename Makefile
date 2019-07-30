@@ -3,7 +3,7 @@ include $(SHENANGODIR)/shared.mk
 
 #IX_DIR ?= ../zygos
 #MUTILATE_DIR ?= ../mutilate
-SILO_DIR = .silo
+SILO_DIR = silo
 SILO_BUILD_DIR ?= $(SILO_DIR)/out-perf.masstree
 
 CPPFLAGS = -Wall -O3 -g -MD

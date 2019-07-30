@@ -17,13 +17,24 @@
 
 #define BUFSIZE 2048
 
+struct payload {
+	uint64_t work_iterations;
+	uint64_t index;
+};
+
+enum spin_conn_state {
+	STATE_RECEIVE = 1,
+	STATE_SPIN,
+	STATE_SEND,
+};
+
 struct conn {
 #if CONFIG_REGISTER_FD_TO_ALL_EPOLLS
 	volatile int lock;
 #endif
 	int fd;
-	enum conn_state state;
-	binary_header_t header;
+	enum spin_conn_state state;
+	struct payload payload;
 	int buf_head;
 	int buf_tail;
 	unsigned char buf[BUFSIZE];
@@ -36,6 +47,7 @@ struct conn {
 static int epollfd[MAX_THREADS];
 __thread int thread_no;
 int nr_cpu;
+int listen_port;
 
 static int avail_bytes(struct conn *conn)
 {
@@ -47,7 +59,7 @@ static int recv_exactly(struct conn *conn, void *buf, size_t size)
 	ssize_t ret;
 	if (avail_bytes(conn) < size) {
 		if (conn->buf_head) {
-			memmove(conn->buf, &conn->buf[conn->buf_head], conn->buf_head);
+			memmove(conn->buf, &conn->buf[conn->buf_head], avail_bytes(conn));
 			conn->buf_tail -= conn->buf_head;
 			conn->buf_head = 0;
 		}
@@ -81,7 +93,7 @@ static int send_exactly(struct conn *conn, void *buf, size_t size)
 	return 1;
 }
 
-static int drain_exactly(struct conn *conn, size_t size)
+/*static int drain_exactly(struct conn *conn, size_t size)
 {
 	ssize_t ret;
 	char buf[2048];
@@ -105,7 +117,7 @@ static int drain_exactly(struct conn *conn, size_t size)
 	}
 
 	return 1;
-}
+	}*/
 
 static int handle_ret(struct conn *conn, ssize_t ret, int line)
 {
@@ -133,54 +145,38 @@ static int handle_ret(struct conn *conn, ssize_t ret, int line)
 	return 0;
 }
 
+uint64_t ntohll(uint64_t value)
+{
+	/* really lazy, assumes a specific endianness */
+
+	const uint32_t high_part = ntohl((uint32_t) (value >> 32));
+	const uint32_t low_part = ntohl((uint32_t) (value & 0xFFFFFFFFLL));
+
+	return (((uint64_t) low_part) << 32) | high_part;
+}
+
 static void drive_machine(struct conn *conn)
 {
 	ssize_t ret;
 
 	switch (conn->state) {
-	case STATE_HEADER:
+	case STATE_RECEIVE:
 next_request:
-		ret = recv_exactly(conn, &conn->header, sizeof(conn->header));
+		ret = recv_exactly(conn, &conn->payload, sizeof(conn->payload));
 		if (handle_ret(conn, ret, __LINE__))
 			return;
-		assert(conn->header.magic == 0x80);
-		conn->state = STATE_EXTRA;
+		conn->state = STATE_SPIN;
 		/* fallthrough */
-	case STATE_EXTRA:
-		ret = drain_exactly(conn, conn->header.extra_len);
-		if (handle_ret(conn, ret, __LINE__))
-			return;
-		conn->state = STATE_KEY;
-		/* fallthrough */
-	case STATE_KEY:
-		ret = drain_exactly(conn, __builtin_bswap16(conn->header.key_len));
-		if (handle_ret(conn, ret, __LINE__))
-			return;
-		conn->state = STATE_VALUE;
-		/* fallthrough */
-	case STATE_VALUE:
-		if (conn->header.opcode == CMD_SET) {
-			ret = drain_exactly(conn, __builtin_bswap32(conn->header.body_len) - __builtin_bswap16(conn->header.key_len) - conn->header.extra_len);
-			if (handle_ret(conn, ret, __LINE__))
-				return;
-		} else {
-			assert(conn->header.opcode == CMD_GET);
-		}
-		conn->state = STATE_PROC;
-		/* fallthrough */
-	case STATE_PROC:
+	case STATE_SPIN:
 		process_request();
-		conn->state = STATE_RESPONSE;
-		conn->header.magic = 0x81;
-		conn->header.status = __builtin_bswap16(1); /* Key not found */
-		conn->header.body_len = 0;
+		conn->state = STATE_SEND;
 		/* fallthrough */
-	case STATE_RESPONSE:
-		ret = send_exactly(conn, &conn->header, sizeof(conn->header));
+	case STATE_SEND:
+		ret = send_exactly(conn, &conn->payload, sizeof(conn->payload));
 		if (handle_ret(conn, ret, __LINE__))
 			return;
-		conn->state = STATE_HEADER;
-		if (avail_bytes(conn) >= sizeof(conn->header))
+		conn->state = STATE_RECEIVE;
+		if (avail_bytes(conn) >= sizeof(conn->payload))
 			goto next_request;
 		break;
 	default:
@@ -276,7 +272,7 @@ static void *tcp_thread_main(void *arg)
 	memset(&sin, 0, sizeof(sin));
 	sin.sin_family = AF_INET;
 	sin.sin_addr.s_addr = htonl(0);
-	sin.sin_port = htons(11211);
+	sin.sin_port = htons(listen_port);
 
 	if (bind(sock, (struct sockaddr*)&sin, sizeof(sin))) {
 		perror("bind");
@@ -318,7 +314,7 @@ static void *tcp_thread_main(void *arg)
 				conn->lock = 0;
 #endif
 				conn->fd = conn_sock;
-				conn->state = STATE_HEADER;
+				conn->state = STATE_RECEIVE;
 				conn->buf_head = 0;
 				conn->buf_tail = 0;
 				epoll_ctl_add(conn_sock, conn);
@@ -340,14 +336,17 @@ static void *tcp_thread_main(void *arg)
 	return NULL;
 }
 
-void init_linux(void)
+void init_linux(int n_cpu, int port)
 {
 	srand48(mytime());
 
-	cpu_set_t cpuset;
+	/*	cpu_set_t cpuset;
 	CPU_ZERO(&cpuset);
 	pthread_getaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
-	nr_cpu = CPU_COUNT(&cpuset);
+	nr_cpu = CPU_COUNT(&cpuset);*/
+	nr_cpu = n_cpu;
+
+	listen_port = port;
 }
 
 void start_linux_server(void)
@@ -355,6 +354,8 @@ void start_linux_server(void)
 	int i;
 	pthread_t tid;
 
+	printf("starting linux server with %d threads, port %d\n", nr_cpu, listen_port);
+	fflush(stdout);
 	for (i = 1; i < nr_cpu; i++) {
 		if (pthread_create(&tid, NULL, tcp_thread_main, (void *) (long) i)) {
 			fprintf(stderr, "failed to spawn thread %d\n", i);

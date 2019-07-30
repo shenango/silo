@@ -4,7 +4,7 @@
 #include <unistd.h>
 
 void init_ix(int udp);
-void init_linux(void);
+void init_linux(int n_cpu, int port);
 void init_thread(void);
 void process_request(void);
 void start_ix_server(int udp);

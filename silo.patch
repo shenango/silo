@@ -1,0 +1,13 @@
+diff --git a/Makefile b/Makefile
+index b932a98..835abd5 100644
+--- a/Makefile
++++ b/Makefile
+@@ -76,7 +76,7 @@ else
+ 	$(error invalid mode)
+ endif
+ 
+-CXXFLAGS := -g -Wall -std=c++0x -Wno-maybe-uninitialized
++CXXFLAGS := -g -Wall -std=c++0x -Wno-format-truncation -Wno-maybe-uninitialized -Wno-unused-variable
+ CXXFLAGS += -MD -Ithird-party/lz4 -DCONFIG_H=\"$(CONFIG_H)\"
+ 
+ ifeq ($(INSTR),1)

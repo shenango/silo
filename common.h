@@ -9,6 +9,8 @@ void init_thread(void);
 void process_request(void);
 void start_ix_server(int udp);
 void start_linux_server(void);
+int init_shenango(const char *cfgpath, int port);
+int init_global(void);
 
 extern __thread int thread_no;
 extern int nr_cpu;

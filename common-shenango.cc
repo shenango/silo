@@ -60,9 +60,10 @@ void HandleRequest(RequestContext *ctx) {
 
 void ServerWorker(std::shared_ptr<rt::TcpConn> c) {
   auto resp = std::make_shared<SharedTcpStream>(c);
+
+ /* allocate context */
+  auto ctx = new RequestContext(resp);
   while (true) {
-    /* allocate context */
-    auto ctx = new RequestContext(resp);
     Payload *p = &ctx->p;
 
     /* Receive a work request. */
@@ -74,11 +75,16 @@ void ServerWorker(std::shared_ptr<rt::TcpConn> c) {
       return;
     }
 
+#ifdef OUT_OF_ORDER_CONN
     rt::Thread([=] {
       HandleRequest(ctx);
       delete ctx;
     })
         .Detach();
+    ctx = new RequestContext(resp);
+#else
+    HandleRequest(ctx);
+#endif
   }
 }
 

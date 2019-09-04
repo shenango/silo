@@ -64,6 +64,11 @@ static vector<my_bench_worker *> workers;
 
 extern "C" {
 
+void silotpcc_exec_gc(void)
+{
+	transaction_proto2_static::PurgeThreadOutstandingGCTasks();
+}
+
 int silotpcc_exec_one(int thread_id)
 {
 	auto worker = workers[thread_id];

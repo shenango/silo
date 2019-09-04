@@ -4,7 +4,7 @@ extern "C" {
 #include <runtime/runtime.h>
 #include <runtime/smalloc.h>
 #include <runtime/storage.h>
-
+void silotpcc_exec_gc(void);
 #include "common.h"
 }
 
@@ -22,6 +22,7 @@ __thread int thread_no;
 struct Payload {
   uint64_t work_iterations;
   uint64_t index;
+  uint64_t randomness;
 };
 
 class SharedTcpStream {
@@ -56,6 +57,7 @@ void HandleRequest(RequestContext *ctx) {
   if (ret != static_cast<ssize_t>(sizeof(ctx->p))) {
     if (ret != -EPIPE && ret != -ECONNRESET) log_err("tcp_write failed");
   }
+  silotpcc_exec_gc();
 }
 
 void ServerWorker(std::shared_ptr<rt::TcpConn> c) {
@@ -74,7 +76,7 @@ void ServerWorker(std::shared_ptr<rt::TcpConn> c) {
       delete ctx;
       return;
     }
-
+#define OUT_OF_ORDER_CONN 1
 #ifdef OUT_OF_ORDER_CONN
     rt::Thread([=] {
       HandleRequest(ctx);

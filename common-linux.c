@@ -20,6 +20,7 @@
 struct payload {
 	uint64_t work_iterations;
 	uint64_t index;
+	uint64_t randomness;
 };
 
 enum spin_conn_state {
@@ -177,7 +178,6 @@ next_request:
 		if (handle_ret(conn, ret, __LINE__))
 			return;
 		conn->state = STATE_RECEIVE;
-		silotpcc_exec_gc();
 		if (avail_bytes(conn) >= sizeof(conn->payload))
 			goto next_request;
 		break;
@@ -329,6 +329,7 @@ static void *tcp_thread_main(void *arg)
 					if (try_lock(conn)) {
 						drive_machine(conn);
 						unlock(conn);
+						silotpcc_exec_gc();
 					}
 				}
 			}

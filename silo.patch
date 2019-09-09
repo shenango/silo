@@ -11,6 +11,18 @@ index b932a98..835abd5 100644
  CXXFLAGS += -MD -Ithird-party/lz4 -DCONFIG_H=\"$(CONFIG_H)\"
  
  ifeq ($(INSTR),1)
+diff --git a/allocator.cc b/allocator.cc
+index d3d16f4..517fe89 100644
+--- a/allocator.cc
++++ b/allocator.cc
+@@ -310,6 +310,7 @@ allocator::ReleaseArenas(void **arenas)
+ static void
+ numa_hint_memory_placement(void *px, size_t sz, unsigned node)
+ {
++  return;
+   struct bitmask *bm = numa_allocate_nodemask();
+   numa_bitmask_setbit(bm, node);
+   numa_interleave_memory(px, sz, bm);
 diff --git a/macros.h b/macros.h
 index b128fe6..2b26092 100644
 --- a/macros.h

@@ -155,6 +155,7 @@ uint64_t ntohll(uint64_t value)
 	return (((uint64_t) low_part) << 32) | high_part;
 }
 
+extern void silotpcc_exec_gc(void);
 static void drive_machine(struct conn *conn)
 {
 	ssize_t ret;
@@ -176,6 +177,7 @@ next_request:
 		if (handle_ret(conn, ret, __LINE__))
 			return;
 		conn->state = STATE_RECEIVE;
+		silotpcc_exec_gc();
 		if (avail_bytes(conn) >= sizeof(conn->payload))
 			goto next_request;
 		break;

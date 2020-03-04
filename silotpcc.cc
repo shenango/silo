@@ -85,8 +85,33 @@ int silotpcc_exec_one(int thread_id)
 	return 1;
 }
 
+int silotpcc_load()
+{
+	const vector<bench_loader *> loaders = runner->call_make_loaders();
+	spin_barrier b(loaders.size());
+	std::vector<std::thread> ths;
+	for (vector<bench_loader *>::const_iterator it = loaders.begin(); it != loaders.end(); ++it) {
+		ths.emplace_back([=, &b] {
+			(*it)->set_barrier(b);
+			(*it)->start();
+			(*it)->join();
+		});
+	}
+
+	for (auto &w: ths)
+		w.join();
+
+	db->do_txn_epoch_sync();
+	auto persisted_info = db->get_ntxn_persisted();
+	assert(get<0>(persisted_info) == get<1>(persisted_info));
+	db->reset_ntxn_persisted();
+	persisted_info = db->get_ntxn_persisted();
+	ALWAYS_ASSERT(get<0>(persisted_info) == 0 && get<1>(persisted_info) == 0 && get<2>(persisted_info) == 0.0);
+}
+
 int silotpcc_init(int number_threads, long numa_memory_)
 {
+	enable_parallel_loading = 1;
 	nthreads = number_threads;
 	scale_factor = number_threads;
 	pin_cpus = 1;
@@ -106,22 +131,7 @@ int silotpcc_init(int number_threads, long numa_memory_)
 
 	runner = new my_bench_runner(db);
 
-	// Copy-paste from benchmarks/bench.cc:168
-	const vector<bench_loader *> loaders = runner->call_make_loaders();
-	spin_barrier b(loaders.size());
-	for (vector<bench_loader *>::const_iterator it = loaders.begin(); it != loaders.end(); ++it) {
-		(*it)->set_barrier(b);
-		(*it)->start();
-	}
-	for (vector<bench_loader *>::const_iterator it = loaders.begin(); it != loaders.end(); ++it)
-		(*it)->join();
-
-	db->do_txn_epoch_sync();
-	auto persisted_info = db->get_ntxn_persisted();
-	assert(get<0>(persisted_info) == get<1>(persisted_info));
-	db->reset_ntxn_persisted();
-	persisted_info = db->get_ntxn_persisted();
-	ALWAYS_ASSERT(get<0>(persisted_info) == 0 && get<1>(persisted_info) == 0 && get<2>(persisted_info) == 0.0);
+	silotpcc_load();
 
 	// This is a hack to access protected members of classes defined in silo
 	for (auto w: runner->call_make_workers())

@@ -4,7 +4,6 @@ extern "C" {
 #include <runtime/runtime.h>
 #include <runtime/smalloc.h>
 #include <runtime/storage.h>
-void silotpcc_exec_gc(void);
 #include "common.h"
 }
 
@@ -57,7 +56,6 @@ void HandleRequest(RequestContext *ctx) {
   if (ret != static_cast<ssize_t>(sizeof(ctx->p))) {
     if (ret != -EPIPE && ret != -ECONNRESET) log_err("tcp_write failed");
   }
-  silotpcc_exec_gc();
 }
 
 void ServerWorker(std::shared_ptr<rt::TcpConn> c) {

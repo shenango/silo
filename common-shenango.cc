@@ -4,6 +4,7 @@ extern "C" {
 #include <runtime/runtime.h>
 #include <runtime/smalloc.h>
 #include <runtime/storage.h>
+#include <runtime/preempt.h>
 #include "common.h"
 }
 
@@ -51,7 +52,9 @@ class RequestContext {
 };
 
 void HandleRequest(RequestContext *ctx) {
+  preempt_disable();
   process_request();
+  preempt_enable();
   ssize_t ret = ctx->conn->WriteFull(&ctx->p, sizeof(ctx->p));
   if (ret != static_cast<ssize_t>(sizeof(ctx->p))) {
     if (ret != -EPIPE && ret != -ECONNRESET) log_err("tcp_write failed");

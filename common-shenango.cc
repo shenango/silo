@@ -1,6 +1,8 @@
 
 extern "C" {
 #include <base/log.h>
+#include <base/thread.h>
+#include <base/byteorder.h>
 #include <runtime/runtime.h>
 #include <runtime/smalloc.h>
 #include <runtime/storage.h>
@@ -52,9 +54,21 @@ class RequestContext {
 };
 
 void HandleRequest(RequestContext *ctx) {
-  preempt_disable();
-  process_request();
-  preempt_enable();
+  uint64_t idx = -1;
+  uint64_t before = rdtsc();
+  bool vret = process_request_new(&idx);
+  barrier();
+  uint64_t after = rdtsc();
+  barrier();
+
+  uint64_t total_execution_us = (after - before) / cycles_per_us;
+  WARN_ON_ONCE(total_execution_us > 65535);
+
+  uint64_t val = ((vret ? 1UL : 0UL) << 40) | (idx << 32) | (total_execution_us << 16);
+
+  WARN_ON_ONCE(idx > 4);
+
+  ctx->p.randomness = hton64(after);
   ssize_t ret = ctx->conn->WriteFull(&ctx->p, sizeof(ctx->p));
   if (ret != static_cast<ssize_t>(sizeof(ctx->p))) {
     if (ret != -EPIPE && ret != -ECONNRESET) log_err("tcp_write failed");
@@ -105,7 +119,6 @@ void MainHandler(void *arg) {
 }
 
 int init_thread_wrap(void) {
-  extern __thread unsigned int thread_id;
   thread_no = thread_id;
   init_thread();
   return 0;

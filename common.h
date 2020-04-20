@@ -2,11 +2,14 @@
 
 #include <sys/time.h>
 #include <unistd.h>
+#include <stdbool.h>
+#include <inttypes.h>
 
 void init_ix(int udp);
 void init_linux(int n_cpu, int port);
 void init_thread(void);
-void process_request(void);
+bool process_request(void);
+bool process_request_new(uint64_t *worker_idx);
 void start_ix_server(int udp);
 void start_linux_server(void);
 int init_shenango(const char *cfgpath, int port);

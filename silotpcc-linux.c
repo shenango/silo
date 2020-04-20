@@ -5,9 +5,9 @@
 
 size_t memory;
 
-void process_request(void)
+bool process_request(void)
 {
-	silotpcc_exec_one(thread_no);
+	return silotpcc_exec_one(thread_no);
 }
 
 void init_thread(void)

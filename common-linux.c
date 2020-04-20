@@ -1,4 +1,6 @@
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
 
 #include <assert.h>
 #include <errno.h>
@@ -23,6 +25,13 @@ struct payload {
 	uint64_t randomness;
 };
 
+static inline uint64_t rdtsc(void)
+{
+        uint32_t a, d;
+        asm volatile("rdtsc" : "=a" (a), "=d" (d));
+        return ((uint64_t)a) | (((uint64_t)d) << 32);
+}
+
 enum spin_conn_state {
 	STATE_RECEIVE = 1,
 	STATE_SPIN,
@@ -43,7 +52,9 @@ struct conn {
 
 #define BACKLOG 8192
 #define MAX_THREADS 64
+#ifndef EPOLLEXCLUSIVE
 #define EPOLLEXCLUSIVE (1 << 28)
+#endif
 
 static int epollfd[MAX_THREADS];
 __thread int thread_no;
@@ -171,6 +182,7 @@ next_request:
 		/* fallthrough */
 	case STATE_SPIN:
 		process_request();
+		conn->payload.randomness = htobe64(rdtsc());
 		conn->state = STATE_SEND;
 		/* fallthrough */
 	case STATE_SEND:

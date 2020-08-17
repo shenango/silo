@@ -151,11 +151,11 @@ void silotpcc_init_thread(int thread_id)
 	_ZN6coreid10tl_core_idE = -1;
 
 	// Copy-paste from benchmarks/bench.cc:112
-	coreid::set_core_id(worker->get_worker_id());
-	{
-		scoped_rcu_region r;
-	}
-	worker->call_on_run_setup();
+//	coreid::set_core_id(worker->get_worker_id());
+//	{
+//		scoped_rcu_region r;
+//	}
+//	worker->call_on_run_setup();
 }
 
 }

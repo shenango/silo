@@ -1,5 +1,5 @@
 ROOT_PATH = $(SHENANGODIR)
--include $(SHENANGODIR)/shared.mk
+-include $(SHENANGODIR)/build/shared.mk
 
 #IX_DIR ?= ../zygos
 #MUTILATE_DIR ?= ../mutilate

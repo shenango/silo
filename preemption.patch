@@ -1,16 +1,30 @@
-From c72c8277be647bf87758eaf20fc24fb93cf125f9 Mon Sep 17 00:00:00 2001
+From 97f77407d5b6cd789a7ab528bf12b8e073896831 Mon Sep 17 00:00:00 2001
 From: Josh Fried <joshuafried@gmail.com>
 Date: Wed, 22 Apr 2020 16:41:44 -0400
-Subject: [PATCH] horrible patches part I
+Subject: [PATCH] preemption patches
 
 ---
+ Makefile           |  2 ++
  benchmarks/tpcc.cc |  2 +-
  core.h             | 40 ++++++++++++++++++++++++++++++++++------
  shenango.h         | 11 +++++++++++
  ticker.h           | 13 ++++++++++++-
- 4 files changed, 58 insertions(+), 8 deletions(-)
+ 5 files changed, 60 insertions(+), 8 deletions(-)
  create mode 100644 shenango.h
 
+diff --git a/Makefile b/Makefile
+index 835abd5..8a837f0 100644
+--- a/Makefile
++++ b/Makefile
+@@ -235,6 +235,8 @@ masstree/configure masstree/config.h.in: masstree/configure.ac
+ .PHONY: dbtest
+ dbtest: $(O)/benchmarks/dbtest
+ 
++dbtestdep: $(O)/benchmarks/dbtest.o $(OBJFILES) $(MASSTREE_OBJFILES) $(BENCH_OBJFILES) third-party/lz4/liblz4.so
++
+ $(O)/benchmarks/dbtest: $(O)/benchmarks/dbtest.o $(OBJFILES) $(MASSTREE_OBJFILES) $(BENCH_OBJFILES) third-party/lz4/liblz4.so
+ 	$(CXX) -o $(O)/benchmarks/dbtest $^ $(BENCH_LDFLAGS) $(LZ4LDFLAGS)
+ 
 diff --git a/benchmarks/tpcc.cc b/benchmarks/tpcc.cc
 index 383ad37..01784c1 100644
 --- a/benchmarks/tpcc.cc

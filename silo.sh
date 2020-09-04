@@ -7,7 +7,7 @@ set -e
 git submodule update --init --recursive
 
 pushd silo
-git am ../silo.patch || true
-git am ../preemption.patch || true
+git apply ../silo.patch || true
+git apply ../preemption.patch || true
 make dbtestdep -j
 popd

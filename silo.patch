@@ -1,25 +1,26 @@
-From af913cd3e4f740a408b9a66c9e9cb6cf44d844c3 Mon Sep 17 00:00:00 2001
+From bd6d721f88e932928382a7ac79efac0abd5e8eab Mon Sep 17 00:00:00 2001
 From: Josh Fried <joshuafried@gmail.com>
 Date: Mon, 20 Apr 2020 14:17:55 -0400
 Subject: [PATCH] tweaks for shenango
 
 ---
- Makefile           |  2 +-
+ Makefile           |  3 ++-
  allocator.cc       |  1 +
  benchmarks/tpcc.cc | 15 ++++++++++++++-
  ticker.h           | 12 ++++++------
- 4 files changed, 22 insertions(+), 8 deletions(-)
+ 4 files changed, 23 insertions(+), 8 deletions(-)
 
 diff --git a/Makefile b/Makefile
-index b932a98..835abd5 100644
+index b932a98..25a9cb3 100644
 --- a/Makefile
 +++ b/Makefile
-@@ -76,7 +76,7 @@ else
+@@ -76,7 +76,8 @@ else
  	$(error invalid mode)
  endif
  
 -CXXFLAGS := -g -Wall -std=c++0x -Wno-maybe-uninitialized
 +CXXFLAGS := -g -Wall -std=c++0x -Wno-format-truncation -Wno-maybe-uninitialized -Wno-unused-variable
++CXXFLAGS += -Wno-address-of-packed-member -Wno-class-memaccess
  CXXFLAGS += -MD -Ithird-party/lz4 -DCONFIG_H=\"$(CONFIG_H)\"
  
  ifeq ($(INSTR),1)
@@ -92,5 +93,5 @@ index e7ba19b..f8d2c10 100644
      // runs as daemon
      util::timer loop_timer;
 -- 
-2.17.1
+2.25.1
 
